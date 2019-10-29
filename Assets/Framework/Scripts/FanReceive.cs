@@ -39,9 +39,9 @@ public class FanReceive : MonoBehaviour
     public Text tempDisp_Status;
     //text that shows the fan status
     public Text fanDisp_Status;
-
+    //text that shows any extra IDs
     public Text extraIDDisp;
-
+    //text that sets the threshold for the warning image
     public Text tempWarningThreshold;
     //network received temperature
     string _temperature = "0";
@@ -53,12 +53,8 @@ public class FanReceive : MonoBehaviour
     public Image tempWarning;
     //booleans to check presence of sensors
     bool fanPresent, temperaturePresent;
-
+    //gameobjects for the fan case of the twin and the blades of the real fan
     public GameObject twinFanCase, realFanBlade;
-
-
-
-
 
     // Start is called before the first frame update
     void Start()
@@ -69,6 +65,10 @@ public class FanReceive : MonoBehaviour
         fanSpeedInput.onValueChanged.AddListener(speedChange);
         //on button click, send the previewed fan speed
         btn.onClick.AddListener(sendSpeed);
+        //disable the temperature warning image
+        tempWarning.enabled = false;
+
+        #region speech
 
         keywords.Add("full", () =>
         {
@@ -79,7 +79,19 @@ public class FanReceive : MonoBehaviour
             //show the previewed speed on the slider
             fanSpeedInput.value = speed;
             //show previewed fan speed as a string
-            speedDisp_Preview.text = "Previewed speed: " + speed.ToString();
+            speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
+        });
+
+        keywords.Add("max", () =>
+        {
+            //toggle preview mode
+            isPreview = true;
+            //set the fan speed to full
+            speed = 100;
+            //show the previewed speed on the slider
+            fanSpeedInput.value = speed;
+            //show previewed fan speed as a string
+            speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
         });
 
         keywords.Add("confirm", () =>
@@ -107,7 +119,19 @@ public class FanReceive : MonoBehaviour
             //show the previewed speed on the slider
             fanSpeedInput.value = speed;
             //show previewed fan speed as a string
-            speedDisp_Preview.text = "Previewed speed: " + speed.ToString();
+            speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
+        });
+
+        keywords.Add("disable", () =>
+        {
+            //toggle preview mode
+            isPreview = true;
+            //set the fan speed to zero
+            speed = 0;
+            //show the previewed speed on the slider
+            fanSpeedInput.value = speed;
+            //show previewed fan speed as a string
+            speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
         });
 
         keywords.Add("mid", () =>
@@ -119,7 +143,7 @@ public class FanReceive : MonoBehaviour
             //show the previewed speed on the slider
             fanSpeedInput.value = speed;
             //show previewed fan speed as a string
-            speedDisp_Preview.text = "Previewed speed: " + speed.ToString();
+            speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
         });
 
         keywordRecogniser = new KeywordRecognizer(keywords.Keys.ToArray());
@@ -127,6 +151,8 @@ public class FanReceive : MonoBehaviour
         keywordRecogniser.OnPhraseRecognized += KeywordRecogniser_OnPhraseRecognised;
 
         keywordRecogniser.Start();
+
+        #endregion
     }
 
     void KeywordRecogniser_OnPhraseRecognised(PhraseRecognizedEventArgs args)
@@ -146,7 +172,7 @@ public class FanReceive : MonoBehaviour
         //set the fan speed to the slider value
         speed = fanSpeedInput.value;
         //show previewed fan speed as a string
-        speedDisp_Preview.text = "Previewed speed: " + speed.ToString();
+        speedDisp_Preview.text = "Previewed speed: " + speed.ToString() + "%";
     }
 
     //called when button is pressed
@@ -161,6 +187,13 @@ public class FanReceive : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Application.platform == RuntimePlatform.Android)
+        {
+            if (Input.GetKey(KeyCode.Escape))
+            {
+                Application.Quit();
+            }
+        }
         //assume the sensors are not present
         temperaturePresent = false;
         fanPresent = false;
@@ -329,7 +362,7 @@ public class FanReceive : MonoBehaviour
                 //make text colour more red as speed increases
                 speedDisp_Recieve.color = new Color(1, (100 - fanSpeed) / 100, (100 - fanSpeed) / 100);
                 //show the received fan speed on both fans
-                speedDisp_Recieve.text = "Actual fan speed: " + _fanSpeed;
+                speedDisp_Recieve.text = "Actual fan speed: " + _fanSpeed + " rpm";
                 //update the visual speed by parsing the string
                 realFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * fanSpeed);
                 //don't run if in preview mode
