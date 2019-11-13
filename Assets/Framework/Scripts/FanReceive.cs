@@ -7,6 +7,13 @@ using UnityEngine.UI;
 
 public class FanReceive : MonoBehaviour
 {
+    public int viewerID;
+    public Text serverTime;
+    public int fanCurrentJob;
+    public Button setAuto;
+    public Text autoText;
+    public bool auto = false;
+
     //text that shows the received value and previewed value
     public Text speedDisp_Recieve, speedDisp_Preview, twinLabel;
     //button to send the new value
@@ -67,7 +74,10 @@ public class FanReceive : MonoBehaviour
         btn.onClick.AddListener(sendSpeed);
         //disable the temperature warning image
         tempWarning.enabled = false;
-
+        serverTime = GameObject.Find("serverTime").GetComponent<Text>();
+        autoText = GameObject.Find("setAuto").GetComponentInChildren<Text>();
+        setAuto = GameObject.Find("setAuto").GetComponent<Button>();
+        setAuto.onClick.AddListener(autoPress);
         #region speech
 
         keywords.Add("full", () =>
@@ -158,7 +168,7 @@ public class FanReceive : MonoBehaviour
     void KeywordRecogniser_OnPhraseRecognised(PhraseRecognizedEventArgs args)
     {
         Action keywordAction;
-        if(keywords.TryGetValue(args.text, out keywordAction))
+        if (keywords.TryGetValue(args.text, out keywordAction))
         {
             keywordAction.Invoke();
         }
@@ -182,6 +192,27 @@ public class FanReceive : MonoBehaviour
         dataReceive.SendMsg("0+" + speed.ToString());
         //disable preview mode
         isPreview = false;
+    }
+
+    void autoPress()
+    {
+        if (auto)
+        {
+            autoText.text = "Set Auto";
+            auto = false;
+            fanSpeedInput.interactable = true; ;
+            btn.interactable = true;
+            return;
+        }
+        else
+        {
+            autoText.text = "Disable Auto";
+            auto = true;
+            fanSpeedInput.interactable = false; ;
+            btn.interactable = false;
+            return;
+        }
+        
     }
 
     // Update is called once per frame
@@ -213,74 +244,72 @@ public class FanReceive : MonoBehaviour
         }
         #region parsing
         //don't run if there's no message received
-        if (dataReceive.serverMessage != null || dataReceive.serverMessage.Length >= 1)
+        if (dataReceive.serverMessage.Length < 5 && dataReceive.serverMessage.Length > 0)
         {
-            try
+            viewerID = int.Parse(dataReceive.serverMessage);
+        }
+        else if (dataReceive.serverMessage.Length > 0)
+        {
+            string[] timeData = dataReceive.serverMessage.Split('!');
+            serverTime.text = timeData[0];
+            if (timeData.Length > 1)
             {
-                #region server message
-                //decode the received string by making an array (string received as "fan null potentiometer")
-                string[] strArray = dataReceive.serverMessage.Split('@');
-                //check through array for received sensor data
-                for(int i = 0; i < strArray.Length; i++)
+                try
                 {
-                    //set up a temporary string for each part of the received string
-                    string temp = strArray[i];
-                    //split the string using the + signs (ID+Data+Status)
-                    string[] tempData = temp.Split('+');
-                    //if only id+data
-                    if(tempData.Length == 2)
+                    #region server message
+                    //decode the received string by making an array (string received as "fan null potentiometer")
+                    string[] strArray = timeData[1].Split('@');
+                    //check through array for received sensor data
+                    for (int i = 0; i < strArray.Length; i++)
                     {
-                        //take the id from the first part (fan = 0, temperature = 2)
-                        int id = int.Parse(tempData[0]);
-                        
-                        //if id = 0 (fan), set fan speed and confirm its presence
-                        if(id == 0)
+                        //set up a temporary string for each part of the received string
+                        string temp = strArray[i];
+                        //split the string using the + signs (ID+Data+Status)
+                        string[] tempData = temp.Split('+');
+                        //if only id+data
+                        /*if (tempData.Length == 2)
                         {
-                            fanPresent = true;
-                            _fanSpeed = tempData[1];
-                        }
-                        //if id = 2 (sensor), set text and confirm its presence
-                        if (id == 2)
-                        {
-                            temperaturePresent = true;
-                            _temperature = tempData[1];
-                            if (_temperature != "" || _temperature != "null")
+                            //take the id from the first part (fan = 0, temperature = 2)
+                            int id = int.Parse(tempData[0]);
+
+                            //if id = 0 (fan), set fan speed and confirm its presence
+                            if (id == 0)
                             {
-                                tempDisp_Receive.text = _temperature + " Celcius \n Status: N/A";
-                                if(float.Parse(_temperature) < float.Parse(tempWarningThreshold.text))
+                                fanPresent = true;
+                                _fanSpeed = tempData[1];
+                            }
+                            //if id = 2 (sensor), set text and confirm its presence
+                            if (id == 2)
+                            {
+                                temperaturePresent = true;
+                                _temperature = tempData[1];
+                                if (_temperature != "" || _temperature != "null")
                                 {
-                                    tempWarning.enabled = true;
-                                }
-                                else
-                                {
-                                    tempWarning.enabled = false;
+                                    tempDisp_Receive.text = _temperature + " Celcius \n Status: N/A";
+                                    if (float.Parse(_temperature) < float.Parse(tempWarningThreshold.text))
+                                    {
+                                        tempWarning.enabled = true;
+                                    }
+                                    else
+                                    {
+                                        tempWarning.enabled = false;
+                                    }
                                 }
                             }
-                        }
-                        if (id == 1)
-                        {
-                            extraIDDisp.text = "ID " + id + ": Testing Device";
-                        }
-                    }
-                    //if id+status+data
-                    if (tempData.Length == 3)
-                    {
-                        //take the id from the first part (fan = 0, temperature = 2)
+                            if (id == 1)
+                            {
+                                extraIDDisp.text = "ID " + id + ": Testing Device";
+                            }
+                        }*/
+                        //if id+status+data
                         int id = int.Parse(tempData[0]);
-                        if (id == 1)
-                        {
-                            string st = tempData[1];
-                            extraIDDisp.text = "ID " + id + ": Testing Device       Value:" + tempData[2] + "        Status: " + st;
-
-                            break;
-                        }
-                        //take the status from the second part
-                        string status = tempData[1];
-                        //if id = 0 (fan), set fan speed and confirm its presence
-                        if (id == 0)
+                        if (id == 0) //fan
                         {
                             fanPresent = true;
-                            _fanSpeed = tempData[2];    
+                            _fanSpeed = tempData[2];
+                            string status = tempData[1];
+                            //tempData[3] is the current behaviour of the fan
+                            fanCurrentJob = int.Parse(tempData[3]);
                             switch (status)
                             {
                                 case "a":
@@ -300,12 +329,11 @@ public class FanReceive : MonoBehaviour
                                     break;
                             }
                         }
-                        //if id = 2 (sensor), set text and confirm its presence
-                        if (id == 2)
+                        if (id == 2) //temperature
                         {
                             temperaturePresent = true;
                             _temperature = tempData[2];
-                            temperatureStatus = tempData[1];
+                            string status = tempData[1];
                             if (_temperature != "" || _temperature != "null")
                             {
                                 tempDisp_Receive.text = _temperature + " Celcius";
@@ -313,10 +341,14 @@ public class FanReceive : MonoBehaviour
                             if (float.Parse(_temperature) < float.Parse(tempWarningThreshold.text))
                             {
                                 tempWarning.enabled = false;
+                                if (auto && fanCurrentJob > 0)
+                                    dataReceive.SendMsg("0+0");
                             }
                             else
                             {
                                 tempWarning.enabled = true;
+                                if (auto && fanCurrentJob < 100)
+                                    dataReceive.SendMsg("0+100");
                             }
                             switch (status)
                             {
@@ -334,81 +366,154 @@ public class FanReceive : MonoBehaviour
                                     break;
                             }
                         }
-                        else if (id > 2)
+
+                        /*if (tempData.Length == 3)
                         {
-                            string st = tempData[1];
-                            extraIDDisp.text = "ID " + id + ": Testing Device       Value:" + tempData[2] + "        Status: " + st;
+                            //take the id from the first part (fan = 0, temperature = 2)
+                            int id = int.Parse(tempData[0]);
+                            if (id == 1)
+                            {
+                                string st = tempData[1];
+                                extraIDDisp.text = "ID " + id + ": Testing Device       Value:" + tempData[2] + "        Status: " + st;
 
-                            break;
-                        }
+                                break;
+                            }
+                            //take the status from the second part
+                            string status = tempData[1];
+                            //if id = 0 (fan), set fan speed and confirm its presence
+                            if (id == 0)
+                            {
+                                fanPresent = true;
+                                _fanSpeed = tempData[2];
+                                switch (status)
+                                {
+                                    case "a":
+                                        fanDisp_Status.text = "Status: OK";
+                                        fanDisp_Status.color = Color.green;
+                                        realFanBlade.GetComponent<Renderer>().material.color = Color.black;
+                                        break;
+                                    case "b":
+                                        fanDisp_Status.text = "Status: Check";
+                                        fanDisp_Status.color = Color.yellow;
+                                        realFanBlade.GetComponent<Renderer>().material.color = Color.yellow;
+                                        break;
+                                    case "c":
+                                        fanDisp_Status.text = "Status: Warning";
+                                        fanDisp_Status.color = Color.red;
+                                        realFanBlade.GetComponent<Renderer>().material.color = Color.red;
+                                        break;
+                                }
+                            }
+                            //if id = 2 (sensor), set text and confirm its presence
+                            if (id == 2)
+                            {
+                                temperaturePresent = true;
+                                _temperature = tempData[2];
+                                temperatureStatus = tempData[1];
+                                if (_temperature != "" || _temperature != "null")
+                                {
+                                    tempDisp_Receive.text = _temperature + " Celcius";
+                                }
+                                if (float.Parse(_temperature) < float.Parse(tempWarningThreshold.text))
+                                {
+                                    tempWarning.enabled = false;
+                                }
+                                else
+                                {
+                                    tempWarning.enabled = true;
+                                }
+                                switch (status)
+                                {
+                                    case "a":
+                                        tempDisp_Status.text = "Status: OK";
+                                        tempDisp_Status.color = Color.green;
+                                        break;
+                                    case "b":
+                                        tempDisp_Status.text = "Status: Check";
+                                        tempDisp_Status.color = Color.yellow;
+                                        break;
+                                    case "c":
+                                        tempDisp_Status.text = "Status: Warning";
+                                        tempDisp_Status.color = Color.red;
+                                        break;
+                                }
+                            }
+                            else if (id > 2)
+                            {
+                                string st = tempData[1];
+                                extraIDDisp.text = "ID " + id + ": Testing Device       Value:" + tempData[2] + "        Status: " + st;
 
+                                break;
+                            }
+
+                        }*/
+                    }
+                    //take the first element as the fan speed
+                    //_fanSpeed = strArray[0];
+                    #endregion
+                }
+                catch (FormatException e)
+                {
+                    Debug.Log(e);
+                }
+
+                //don't change the fan speed if the message does not contain the speed
+                if (_fanSpeed != "" || _fanSpeed != "null" || _fanSpeed != null || fanPresent == true)
+                {
+                    btn.interactable = true;
+                    //parse the string
+                    fanSpeed = float.Parse(_fanSpeed);
+                    //make text colour more red as speed increases
+                    speedDisp_Recieve.color = new Color(1, (100 - fanSpeed) / 100, (100 - fanSpeed) / 100);
+                    //show the received fan speed on both fans
+                    speedDisp_Recieve.text = "Actual fan speed: " + _fanSpeed + " rpm";
+                    //update the visual speed by parsing the string
+                    realFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * fanSpeed);
+                    //don't run if in preview mode
+                    if (isPreview == false)
+                    {
+                        twinFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * fanSpeed);
+                    }
+                    //if there's a connection but in preview mode, spin blades at slider speed
+                    else
+                    {
+                        speedDisp_Preview.color = new Color(1, (100 - speed) / 100, (100 - speed) / 100);
+                        twinFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * speed);
                     }
                 }
-                //take the first element as the fan speed
-                //_fanSpeed = strArray[0];
-                #endregion
-            }
-            catch (FormatException e)
-            {
-                Debug.Log(e);
-            }
-            
-            //don't change the fan speed if the message does not contain the speed
-            if (_fanSpeed != "" || _fanSpeed != "null" || _fanSpeed != null || fanPresent == true)
-            {
-                btn.interactable = true;
-                //parse the string
-                fanSpeed = float.Parse(_fanSpeed);
-                //make text colour more red as speed increases
-                speedDisp_Recieve.color = new Color(1, (100 - fanSpeed) / 100, (100 - fanSpeed) / 100);
-                //show the received fan speed on both fans
-                speedDisp_Recieve.text = "Actual fan speed: " + _fanSpeed + " rpm";
-                //update the visual speed by parsing the string
-                realFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * fanSpeed);
-                //don't run if in preview mode
-                if (isPreview == false)
-                {
-                    twinFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * fanSpeed);
-                }
-                //if there's a connection but in preview mode, spin blades at slider speed
+                //show user that the fan is not connected
                 else
                 {
-                    speedDisp_Preview.color = new Color(1, (100 - speed) / 100, (100 - speed) / 100);
+                    speedDisp_Recieve.text = "Actual fan not connected!";
+                    btn.interactable = false;
+                }
+            }
+            else
+            {
+                //if there's no connection but in preview mode, spin blades at slider speed
+                if (isPreview == true)
+                {
+                    speedDisp_Preview.color = new Color(1, (255 - speed) / 255, (255 - speed) / 255);
                     twinFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * speed);
                 }
             }
-            //show user that the fan is not connected
-            else
+            #endregion
+
+            //tell user if sensors are missing
+            if (temperaturePresent == false)
+            {
+                tempDisp_Receive.text = "Sensor not connected!";
+            }
+            if (fanPresent == false)
             {
                 speedDisp_Recieve.text = "Actual fan not connected!";
                 btn.interactable = false;
             }
         }
-        else
-        {
-            //if there's no connection but in preview mode, spin blades at slider speed
-            if (isPreview == true)
-            {
-                speedDisp_Preview.color = new Color(1, (255 - speed) / 255, (255 - speed) / 255);
-                twinFan.transform.Rotate(new Vector3(0, 0, -1), speedFactor * speed);
-            }
-        }
-        #endregion
-
-        //tell user if sensors are missing
-        if(temperaturePresent == false)
-        {
-            tempDisp_Receive.text = "Sensor not connected!";
-        }
-        if (fanPresent == false)
-        {
-            speedDisp_Recieve.text = "Actual fan not connected!";
-            btn.interactable = false;
-        }
     }
 
     private void OnApplicationQuit()
     {
-        keywordRecogniser.Stop();
+        //keywordRecogniser.Stop();
     }
 }
